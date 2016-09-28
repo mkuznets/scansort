@@ -1,0 +1,16 @@
+__pycache__
+.DS_Store
+*.pyc
+*.pyo
+*.swp
+*.swn
+*.swo
+*.out
+*.rt
+*.ini
+*.bak
+dist
+build
+*.egg
+*.egg-info
+.*/
