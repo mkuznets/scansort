@@ -1,48 +1,171 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
-from itertools import chain
-from os.path import join
+import os
+import subprocess
+import tempfile
 import shutil
+import yaml
+from enum import Enum
+from typing import Dict, Tuple
 
 
-def map_fidx2page(page_range, missing):
-    return list(enumerate(filter(lambda page: page not in missing, page_range)))
+file_actions = {
+    'move': shutil.move,
+    'copy': shutil.copy
+}
 
 
-def main(odd_dir, even_dir, missing, fname_format, output_dir, **kwargs):
+class Reviewer:
+    def __init__(self, mapping: Dict) -> None:
+        self.mapping = mapping
 
-    odd_n = 100
-    even_n = 98
-    all_n = odd_n + even_n + len(missing)
+    @staticmethod
+    def _readable_to_map(text: str) -> Dict:
+        return yaml.load(text)
 
-    odd_all_n = odd_n + sum(map(lambda x: x % 2, missing))
-    even_all_n = even_n + sum(map(lambda x: not x % 2, missing))
+    @staticmethod
+    def _map_to_readable(data: Dict) -> str:
+        max_page = max(data.values())
+        padding = len(str(max_page))
+        fmt = '%%s:%% %dd' % (padding+1)
 
-    if odd_all_n - even_all_n != all_n % 2:
-        raise ValueError('Page numbers do not correspond')
+        content = "\n".join(fmt % (repr(f), p) for f, p in
+                            sorted(data.items(), key=lambda x: x[1]))
+        return content
 
-    even_pages = map_fidx2page(range(2, all_n + 1, 2), missing)
-    assert len(even_pages) == even_n
+    def review(self) -> Dict:
+        json_map = self._map_to_readable(self.mapping)
 
-    odd_pages = map_fidx2page(range(1, all_n + 1, 2), missing)
-    assert len(odd_pages) == odd_n
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
+            f.write("# Please review the correspondence "
+                    "between files and book pages\n")
+            f.write(json_map)
+            tmp_file = f.name
 
-    dirs = (even_dir, odd_dir)
-    for fidx, page in chain(even_pages, odd_pages):
-        src = join(dirs[page % 2], fname_format % fidx)
-        dst = join(output_dir, fname_format % page)
+        subprocess.run(['vi', tmp_file])
 
-        print('%s -> %s' % (src, dst))
-        #shutil.copy(src, dst)
+        with open(tmp_file, 'r') as f:
+            lines = (line.strip() for line in f)
+            edited_json = "\n".join(l for l in lines if not l.startswith('#'))
+        os.unlink(tmp_file)
+
+        return self._readable_to_map(edited_json)
+
+
+class Page(Enum):
+    odd = 1
+    even = 2
+
+    @staticmethod
+    def test(type_: Enum):
+        return lambda n: (n % 2) == (type_.value % 2)
+
+    @staticmethod
+    def range(n: int, type_: Enum):
+        return range(type_.value, n+1, 2)
+
+
+class Book:
+    def __init__(self):
+        self.files = {}
+        self.missing = {}
+
+    @property
+    def n_all(self):
+        return sum(self.n(t) for t in Page)
+
+    @property
+    def is_valid(self):
+        return self.n(Page.odd) - self.n(Page.even) == self.n_all % 2
+
+    def n(self, type_: Page):
+        return len(self.files[type_]) + len(self.missing[type_])
+
+    def add_files_from(self, type_, directory):
+        self.files[type_] = sorted(e.path for e in os.scandir(directory)
+                                   if e.is_file())
+
+    def add_missing(self, missing: Tuple):
+        for type_ in Page:
+            self.missing[type_] = list(filter(Page.test(type_), missing))
+
+    def map_files_to_pages(self) -> Dict:
+        mapping = {}
+
+        for type_, files in self.files.items():
+            missing = self.missing[type_]
+            pages = filter(lambda x: x not in missing,
+                           Page.range(self.n_all, type_))
+            mapping.update({files[i]: p for i, p in enumerate(pages)})
+
+        return mapping
+
+
+def main(work_dir: str, odd_dir: str, even_dir: str, missing: tuple,
+         output_dir: str, action: str, fmt: str):
+
+    book = Book()
+
+    book.add_missing(missing)
+
+    for type_, dir_ in ((Page.odd, odd_dir), (Page.even, even_dir)):
+        book.add_files_from(type_, os.path.join(work_dir, dir_))
+
+    if not book.is_valid:
+        raise ValueError('Page numbers does not correspond')
+
+    rev = Reviewer(book.map_files_to_pages())
+    files_to_pages = rev.review()
+
+    if not files_to_pages:
+        print("Nothing to do, sorting is cancelled.")
+        return
+
+    output_path = os.path.join(work_dir, output_dir)
+    os.makedirs(output_path, exist_ok=True)
+
+    act = file_actions[action]
+    output_fmt = os.path.join(output_path, fmt)
+
+    for file_, page in files_to_pages.items():
+        act(file_, output_fmt % page)
+
+    print('%d files have been processed.' % len(files_to_pages))
 
 
 if __name__ == '__main__':
-    args = {
-        'odd_dir': 'lside',
-        'even_dir': 'rside',
-        'output_dir': 'out',
-        'missing': {10, 12},
-        'fname_format': 'scan%04d.tif',
-    }
 
-    main(**args)
+    from argparse import ArgumentParser
+
+    def cs_split(s):
+        if not s:
+            return ()
+        else:
+            return tuple(map(int, s.split(',')))
+
+
+    parser = ArgumentParser(description='Scan Sorting Utility')
+
+    parser.add_argument('workdir', default='.',
+                        help='working directory for input and output files')
+    parser.add_argument('-odd', required=True, help='directory with odd-numbered pages')
+    parser.add_argument('-even', required=True, help='directory with even-numbered pages')
+
+    parser.add_argument('-missing', default='', type=cs_split,
+                        help='comma-separated list of pages numbers (e.g. 1,24,35)')
+    parser.add_argument('-action', default='copy', choices=file_actions.keys(),
+                        help='action performed to the selected files (default: %(default)s)')
+    parser.add_argument('-o', default='out', dest='output',
+                        help='output directory (default: %(default)s)')
+
+    args = parser.parse_args()
+
+    main(
+        work_dir=args.workdir,
+        odd_dir=args.odd,
+        even_dir=args.even,
+        missing=args.missing,
+        action=args.action,
+        output_dir=args.output,
+        fmt='scan%04d.tif'
+    )
