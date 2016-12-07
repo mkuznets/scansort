@@ -57,18 +57,18 @@ By default the current directory is used.
 All page numbers must correspond to
 the actual "physical" page numbering in the book.
 
-``-odd, -even`` *directory name/path*
+``-odd, -even`` directory name/path
     Source directories with scanned images of odd- and even-numbered pages.
 
-``-missing`` *num[,num]\**
+``-missing`` num[,num]\*
     Comma-separated list of page numbers missing in the source directories
     (either accidentally skipped during scanning or not present at all).
 
-``-action`` *{move,copy}*
+``-action`` {move,copy}
     Whether to preserve or delete the original images
     from the source directories. Defaults to ``copy``.
 
-``-o`` *directory name/path*
+``-o`` directory name/path
     Output directory for renamed scanned images. Defaults to ``out``
     and will be created automatically if does not exist.
 
