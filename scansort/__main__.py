@@ -1,4 +1,13 @@
-#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+    scansort.__main__
+    ~~~~~~~~~
+
+    Scansort executable
+
+    :copyright: (c) 2016, Max Kuznetsov
+    :license: MIT, see LICENSE for more details.
+"""
 
 import os
 import subprocess
@@ -9,7 +18,9 @@ from enum import Enum
 from typing import Callable, Iterable, Mapping, Tuple
 
 
-file_actions = {
+__version__ = '0.1'
+
+ACTIONS = {
     'move': shutil.move,
     'copy': shutil.copy
 }
@@ -124,7 +135,7 @@ def main(work_dir: str, odd_dir: str, even_dir: str, missing: tuple,
     output_path = os.path.join(work_dir, output_dir)
     os.makedirs(output_path, exist_ok=True)
 
-    act = file_actions[action]
+    act = ACTIONS[action]
     output_fmt = os.path.join(output_path, fmt)
 
     for file_, page in files_to_pages.items():
@@ -144,18 +155,26 @@ if __name__ == '__main__':
             return tuple(map(int, s.split(',')))
 
 
-    parser = ArgumentParser(description='Scansort helps to arrange and rename book scan images')
+    parser = ArgumentParser(
+        description='Scansort helps to arrange and rename book scan images'
+    )
 
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s 2.0')
+    parser.add_argument('-v', '--version', action='version',
+                        version='scansort %s' % __version__)
     parser.add_argument('workdir', default='.',
                         help='working directory for input and output files')
-    parser.add_argument('-odd', required=True, help='directory with odd-numbered pages')
-    parser.add_argument('-even', required=True, help='directory with even-numbered pages')
-
-    parser.add_argument('-missing', default='', type=comma_split,
-                        help='comma-separated list of pages numbers (e.g. 1,24,35)')
-    parser.add_argument('-action', default='copy', choices=file_actions.keys(),
-                        help='action performed to the selected files (default: %(default)s)')
+    parser.add_argument('-odd', required=True,
+                        help='directory with odd-numbered pages')
+    parser.add_argument('-even', required=True,
+                        help='directory with even-numbered pages')
+    parser.add_argument(
+        '-missing', default='', type=comma_split,
+        help='comma-separated list of pages numbers (e.g. 1,24,35)'
+    )
+    parser.add_argument(
+        '-action', default='copy', choices=ACTIONS.keys(),
+        help='action performed to the selected files (default: %(default)s)'
+    )
     parser.add_argument('-o', default='out', dest='output',
                         help='output directory (default: %(default)s)')
 
