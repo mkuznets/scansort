@@ -156,7 +156,7 @@ if __name__ == '__main__':
 
 
     parser = ArgumentParser(
-        description='Scansort helps to arrange and rename book scan images'
+        description='Scansort helps to collate and rename book scan images'
     )
 
     parser.add_argument('-v', '--version', action='version',
