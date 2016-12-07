@@ -112,7 +112,7 @@ class Book:
         return mapping
 
 
-def main(work_dir: str, odd_dir: str, even_dir: str, missing: tuple,
+def scansort(work_dir: str, odd_dir: str, even_dir: str, missing: tuple,
          output_dir: str, action: str, fmt: str) -> None:
 
     book = Book()
@@ -144,7 +144,7 @@ def main(work_dir: str, odd_dir: str, even_dir: str, missing: tuple,
     print('%d files have been processed.' % len(files_to_pages))
 
 
-if __name__ == '__main__':
+def main():
 
     from argparse import ArgumentParser
 
@@ -180,7 +180,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(
+    scansort(
         work_dir=args.workdir,
         odd_dir=args.odd,
         even_dir=args.even,
@@ -189,3 +189,7 @@ if __name__ == '__main__':
         output_dir=args.output,
         fmt='scan%04d.tif'
     )
+
+
+if __name__ == '__main__':
+    main()
