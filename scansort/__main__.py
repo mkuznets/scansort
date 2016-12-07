@@ -6,7 +6,7 @@ import tempfile
 import shutil
 import yaml
 from enum import Enum
-from typing import Dict, Tuple
+from typing import Callable, Iterable, Mapping, Tuple
 
 
 file_actions = {
@@ -16,15 +16,15 @@ file_actions = {
 
 
 class Reviewer:
-    def __init__(self, mapping: Dict) -> None:
+    def __init__(self, mapping: Mapping) -> None:
         self.mapping = mapping
 
     @staticmethod
-    def _readable_to_map(text: str) -> Dict:
+    def _readable_to_map(text: str) -> Mapping:
         return yaml.load(text)
 
     @staticmethod
-    def _map_to_readable(data: Dict) -> str:
+    def _map_to_readable(data: Mapping) -> str:
         max_page = max(data.values())
         padding = len(str(max_page))
         fmt = '%%s:%% %dd' % (padding+1)
@@ -33,7 +33,7 @@ class Reviewer:
                             sorted(data.items(), key=lambda x: x[1]))
         return content
 
-    def review(self) -> Dict:
+    def review(self) -> Mapping:
         json_map = self._map_to_readable(self.mapping)
 
         with tempfile.NamedTemporaryFile(mode='w+', delete=False) as f:
@@ -44,8 +44,8 @@ class Reviewer:
 
         subprocess.run(['vi', tmp_file])
 
-        with open(tmp_file, 'r') as f:
-            lines = (line.strip() for line in f)
+        with open(tmp_file, 'r') as ff:
+            lines = (line.strip() for line in ff)
             edited_json = "\n".join(l for l in lines if not l.startswith('#'))
         os.unlink(tmp_file)
 
@@ -57,11 +57,11 @@ class Page(Enum):
     even = 2
 
     @staticmethod
-    def test(type_: Enum):
+    def test(type_: Enum) -> Callable[[int], bool]:
         return lambda n: (n % 2) == (type_.value % 2)
 
     @staticmethod
-    def range(n: int, type_: Enum):
+    def range(n: int, type_: Enum) -> Iterable[int]:
         return range(type_.value, n+1, 2)
 
 
@@ -71,25 +71,25 @@ class Book:
         self.missing = {}
 
     @property
-    def n_all(self):
+    def n_all(self) -> int:
         return sum(self.n(t) for t in Page)
 
     @property
-    def is_valid(self):
+    def is_valid(self) -> bool:
         return self.n(Page.odd) - self.n(Page.even) == self.n_all % 2
 
-    def n(self, type_: Page):
+    def n(self, type_: Page) -> int:
         return len(self.files[type_]) + len(self.missing[type_])
 
-    def add_files_from(self, type_, directory):
+    def add_files_from(self, type_: Page, directory: str) -> None:
         self.files[type_] = sorted(e.path for e in os.scandir(directory)
                                    if e.is_file())
 
-    def add_missing(self, missing: Tuple):
+    def add_missing(self, missing: Iterable[int]) -> None:
         for type_ in Page:
             self.missing[type_] = list(filter(Page.test(type_), missing))
 
-    def map_files_to_pages(self) -> Dict:
+    def map_files_to_pages(self) -> Mapping:
         mapping = {}
 
         for type_, files in self.files.items():
@@ -102,7 +102,7 @@ class Book:
 
 
 def main(work_dir: str, odd_dir: str, even_dir: str, missing: tuple,
-         output_dir: str, action: str, fmt: str):
+         output_dir: str, action: str, fmt: str) -> None:
 
     book = Book()
 
@@ -137,21 +137,22 @@ if __name__ == '__main__':
 
     from argparse import ArgumentParser
 
-    def cs_split(s):
+    def comma_split(s: str) -> Tuple:
         if not s:
             return ()
         else:
             return tuple(map(int, s.split(',')))
 
 
-    parser = ArgumentParser(description='Scan Sorting Utility')
+    parser = ArgumentParser(description='Scansort helps to arrange and rename book scan images')
 
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s 2.0')
     parser.add_argument('workdir', default='.',
                         help='working directory for input and output files')
     parser.add_argument('-odd', required=True, help='directory with odd-numbered pages')
     parser.add_argument('-even', required=True, help='directory with even-numbered pages')
 
-    parser.add_argument('-missing', default='', type=cs_split,
+    parser.add_argument('-missing', default='', type=comma_split,
                         help='comma-separated list of pages numbers (e.g. 1,24,35)')
     parser.add_argument('-action', default='copy', choices=file_actions.keys(),
                         help='action performed to the selected files (default: %(default)s)')
