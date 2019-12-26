@@ -103,7 +103,7 @@ After scanning a book I am normally left with something like this:
     2 directories, 198 files
 
 where ``rside`` contains even-numbered pages. Suppose I skimmed through
-the directories and realised I missed two pages: 2 and 10.
+the directories and realised I missed two pages: 2 and 6.
 
 Then I run ``scansort`` to collate the directories:
 
