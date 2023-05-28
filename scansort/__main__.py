@@ -29,7 +29,7 @@ class Reviewer:
 
     @staticmethod
     def _readable_to_map(text: str) -> Mapping:
-        return yaml.load(text)
+        return yaml.safe_load(text)
 
     @staticmethod
     def _map_to_readable(data: Mapping) -> str:
@@ -110,13 +110,13 @@ class Book:
 
 
 def scansort(
-    work_dir: str,
-    odd_dir: str,
-    even_dir: str,
-    missing: tuple,
-    output_dir: str,
-    action: str,
-    fmt: str,
+        work_dir: str,
+        odd_dir: str,
+        even_dir: str,
+        missing: tuple,
+        output_dir: str,
+        action: str,
+        fmt: str,
 ) -> None:
     book = Book()
 
