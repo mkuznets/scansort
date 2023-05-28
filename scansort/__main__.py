@@ -14,11 +14,11 @@ import shutil
 import subprocess
 import tempfile
 from enum import Enum
-from typing import Callable, Iterable, Mapping, Tuple, Dict, List
+from typing import Callable, Dict, Iterable, List, Mapping, Tuple
 
 import yaml
 
-__version__ = "0.1"
+__version__ = "0.2"
 
 ACTIONS = {"move": shutil.move, "copy": shutil.copy}
 
@@ -110,13 +110,13 @@ class Book:
 
 
 def scansort(
-        work_dir: str,
-        odd_dir: str,
-        even_dir: str,
-        missing: tuple,
-        output_dir: str,
-        action: str,
-        fmt: str,
+    work_dir: str,
+    odd_dir: str,
+    even_dir: str,
+    missing: tuple,
+    output_dir: str,
+    action: str,
+    fmt: str,
 ) -> None:
     book = Book()
 
