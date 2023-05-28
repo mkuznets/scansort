@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import tempfile
 from enum import Enum
-from typing import Callable, Iterable, Mapping, Tuple
+from typing import Callable, Iterable, Mapping, Tuple, Dict, List
 
 import yaml
 
@@ -56,7 +56,7 @@ class Reviewer:
 
         with open(tmp_file, "r") as ff:
             lines = (line.strip() for line in ff)
-            edited_json = "\n".join(l for l in lines if not l.startswith("#"))
+            edited_json = "\n".join(line for line in lines if not line.startswith("#"))
         os.unlink(tmp_file)
 
         return self._readable_to_map(edited_json)
@@ -76,9 +76,9 @@ class Page(Enum):
 
 
 class Book:
-    def __init__(self):
-        self.files = {}
-        self.missing = {}
+    def __init__(self) -> None:
+        self.files: Dict[Page, List[str]] = {}
+        self.missing: Dict[Page, List[int]] = {}
 
     @property
     def n_all(self) -> int:
@@ -138,16 +138,21 @@ def scansort(
     output_path = os.path.join(work_dir, output_dir)
     os.makedirs(output_path, exist_ok=True)
 
-    act = ACTIONS[action]
     output_fmt = os.path.join(output_path, fmt)
 
     for file_, page in files_to_pages.items():
-        act(file_, output_fmt % page)
+        destination = output_fmt % page
+        if action == "move":
+            shutil.move(file_, destination)
+        elif action == "copy":
+            shutil.copy2(file_, destination)
+        else:
+            raise ValueError("Unknown action: %s" % action)
 
     print("%d files have been processed." % len(files_to_pages))
 
 
-def main():
+def main() -> None:
     from argparse import ArgumentParser
 
     def comma_split(s: str) -> Tuple:
@@ -179,7 +184,7 @@ def main():
     parser.add_argument(
         "-action",
         default="copy",
-        choices=ACTIONS.keys(),
+        choices=("copy", "move"),
         help="action performed to the selected files (default: %(default)s)",
     )
     parser.add_argument(
